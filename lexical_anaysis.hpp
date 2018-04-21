@@ -10,6 +10,7 @@
 #include <set>
 #include <stack>
 #include <any>
+#include <exception>
 #include <fstream>
 #include <unordered_set>
 #include <unordered_map>
@@ -129,6 +130,52 @@ namespace complier
         void anaysis(const std::string& filepath = "lexical") {
             read_grammer_(filepath);
             anaysis_lr();
+        }
+        void anaysis_operation(std::list<std::string>&& operation) {
+            std::cout << "...................anaysis................\n";
+            std::list<std::size_t> state_list;
+            state_list.emplace_front(0);
+            while(!operation.empty()) {
+                std::string s;
+                for(auto it = state_list.rbegin(); it != state_list.rend(); ++it) {
+                    s.append(std::to_string(*it));
+                    s.append(1, ' ');
+                }
+                if(!s.empty())  s.pop_back();
+                std::printf("%-15s", s.c_str());
+
+                s.clear();
+                for(auto& op : operation) {
+                    s.append(op);
+                    s.append(1, ' ');
+                }
+                if(!s.empty())  s.pop_back();
+                std::printf("%15s", s.c_str());
+
+                auto& token = operation.front();
+                std::size_t state = state_list.front();
+                if(!action_[state].count(token)) {
+                    throw std::runtime_error("operation is error in LR(1)");
+                }
+                auto& transfer = action_[state][token];
+                if(transfer.type() == typeid(std::size_t)) {
+                    state_list.emplace_front(std::any_cast<std::size_t>(transfer));
+                    operation.pop_front();
+                    std::printf("%15s\n", "shift");
+                }
+                else if(transfer.type() == typeid(std::string)) {
+                    std::printf("%15s\n", "acc");
+                    break;
+                }
+                else {
+                    auto [prefix, cnt] = std::any_cast<std::pair<std::string, std::size_t>>(transfer);
+                    while(cnt--) {
+                        state_list.pop_front();
+                    }
+                    operation.emplace_front(prefix);
+                    std::printf("%15s\n", "reduction");
+                }
+            }
         }
         void anaysis_predict(const std::vector<std::string>& operation) {
             std::size_t index = 0;
@@ -363,8 +410,10 @@ namespace complier
                             continue;
                         }
                         if(grammer.count(code_list.front()) && !done_set.count(code_list.front())) {
-                            done = false;
-                            break;
+                            if(code_list.front() != code) {
+                                done = false;
+                                break;
+                            }
                         }
                     }
                     /* code下的每个链表的第一个字符
@@ -382,7 +431,7 @@ namespace complier
                                 code_lists.erase(it++);
                             }
                             /* 已经找到First集的字符，将它的First集添加到code的First集中 */
-                            else if(done_set.count(it->front())) {
+                            else if(it->front() != code && done_set.count(it->front())) {
                                 bool has_empty = false;
                                 /* 判断是否存在空字符，
                                  * 如果存在，说明需要考虑它后面的字符，此时不能删除这个链表，而只删除第一个字符即可
@@ -683,38 +732,47 @@ namespace complier
                 }
             }
             ter_symbols.emplace_back("$");
-            std::printf("%-10s", "");
+
+            for(std::size_t i = 0; i < 100; ++i) {
+                std::printf("-");
+            }
+            std::printf("\n");
+            std::printf("%-10s|", "");
             for(auto& symbol : ter_symbols) {
-                std::printf("%-10s", symbol.c_str());
+                std::printf("%-10s|", symbol.c_str());
             }
             for(auto& symbol : noter_symbols) {
-                std::printf("%-10s", symbol.c_str());
+                std::printf("%-10s|", symbol.c_str());
+            }
+            std::printf("\n");
+            for(std::size_t i = 0; i < 100; ++i) {
+                std::printf("-");
             }
             std::printf("\n");
             for(std::size_t i = 0; i != closure_.size(); ++i) {
-                std::printf("%-10d", (unsigned int)i);
+                std::printf("%-10d|", (unsigned int)i);
                 auto print_action = [&](auto& symbol) {
                     if(action_[i].count(symbol)) {
                         auto& d = action_[i][symbol];
                         if(d.type() == typeid(std::size_t)) {
                             std::string s = "s" + std::to_string(std::any_cast<std::size_t>(d));
-                            std::printf("%-10s", s.c_str());
+                            std::printf("%-10s|", s.c_str());
                             /* std::cout << "s " << std::any_cast<std::size_t>(d); */
                         }
                         else if(d.type() == typeid(std::string)) {
-                            std::printf("%-10s", "acc");
+                            std::printf("%-10s|", "acc");
                             /* std::cout << "acc"; */
                         }
                         else {
                             auto [prefix, n] = std::any_cast<std::pair<std::string, std::size_t>>(d);
                             prefix.append(std::to_string(n));
                             prefix = "r" + prefix;
-                            std::printf("%-10s", prefix.c_str());
+                            std::printf("%-10s|", prefix.c_str());
                             /* std::cout << "r " << prefix << " " << n; */
                         }
                     }
                     else {
-                        std::printf("%-10s", "");
+                        std::printf("%-10s|", "");
                     }
                 };
                 for(auto& symbol : ter_symbols) {
@@ -722,6 +780,10 @@ namespace complier
                 }
                 for(auto& symbol : noter_symbols) {
                     print_action(symbol);
+                }
+                std::printf("\n");
+                for(std::size_t i = 0; i < 100; ++i) {
+                    std::printf("-");
                 }
                 std::printf("\n");
             }
@@ -853,6 +915,7 @@ namespace complier
             }
         }
     private:
+
         bool is_letter(char ch) {
             return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
         }
