@@ -1,13 +1,32 @@
-#include <stdio.h>
 int main()
 {
-    int a_ = 1000; /* hello world */
-    for(int i = 0; i < 5; ++i) {
-        printf("hello world!");
+    int a = 0;
+    float b = 1.0;
+    int i = 0;
+    for(i = 0; i != 5; i = i + 1)
+    {
+        b *= a;
+        a = a + 1;
     }
-    if(a_ < 999) {
-        int b = a_;
-        printf("%d", b);
+
+    if(a > 3)
+    {
+        b -= 2;
     }
-    return 0;
+    else
+    {
+        b += 2;
+    }
+
+    int s = 0;
+    s = s + 1;
+    switch(s)
+    {
+        case 5:
+            a = a + 1;
+        case 10:
+            a = a - 1;
+        default:
+            a = a * a;
+    }
 }

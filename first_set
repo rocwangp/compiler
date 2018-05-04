@@ -1,0 +1,81 @@
+S
+char double float int long short unsigned void 
+arg 
+, @ 
+args 
+@ char double float int long short unsigned void 
+assign_stmt 
+( CHAR IDN INT REAL STRING 
+block 
+{ 
+block_stmt 
+{ 
+bool_expression 
+&& @ || 
+branch_stmt 
+if switch 
+call_func 
+( @ 
+case_stmt 
+case 
+case_stmts 
+@ case 
+compare_op 
+!= < <= == > >= 
+const 
+CHAR INT REAL STRING 
+default_stmt 
+default 
+define_stmt 
+char double float int long short unsigned void 
+define_stmts 
+@ char double float int long short unsigned void 
+equal_op 
+%= *= += -= /= = 
+es 
+( , @ CHAR IDN INT REAL STRING 
+expression 
+( CHAR IDN INT REAL STRING 
+factor 
+( CHAR IDN INT REAL STRING 
+func 
+char double float int long short unsigned void 
+func_body 
+; { 
+funcs 
+@ char double float int long short unsigned void 
+init 
+= @ [ 
+isnull_es 
+, @ 
+isnull_expr 
+( @ CHAR IDN INT REAL STRING 
+item 
+( CHAR IDN INT REAL STRING 
+item' 
+% * / @ 
+iteration_stmt 
+do for 
+jump_stmt 
+break continue return 
+logical_expression 
+! ( CHAR IDN INT REAL STRING 
+lop 
+&& || 
+operation 
+!= %= *= += -= /= < <= = == > >= @ 
+result 
+@ else 
+stmt 
+( CHAR IDN INT REAL STRING break continue do for if return switch 
+stmts 
+( @ CHAR IDN INT REAL STRING break continue do for if return switch 
+type 
+char double float int long short unsigned void 
+value 
+( CHAR IDN INT REAL STRING 
+value' 
++ - @ 
+vars 
+, @ 
+
