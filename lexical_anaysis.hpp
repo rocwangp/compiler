@@ -146,9 +146,10 @@ namespace complier
     struct Token
     {
         Token() {}
-        Token(std::size_t i, std::string c, std::string v)
-            : index(i), name(c), value(v) {}
+        Token(std::size_t i, std::string tt, std::string n)
+            : index(i), token_type(tt), name(n) {}
         std::size_t index;
+        std::string token_type;
         std::string name;
         std::string value;
         std::string type;
@@ -165,6 +166,7 @@ namespace complier
             : type(t), name(n) {}
         std::string type;
         std::string name;
+        std::string value;
     };
 
     class LexicalAnaysis
@@ -176,10 +178,6 @@ namespace complier
             anaysis_lr();
         }
         void anaysis_operation() {
-            struct Attr
-            {
-            };
-            Attr get_attr_from_token(Token);
 
             std::cout << "...................anaysis................\n";
             std::list<std::size_t> state_list;
@@ -189,7 +187,6 @@ namespace complier
             token_list.emplace_back();
 
             Token empty_token{ 0, "$", "$" };
-            static bool if_begin = false;
             while(!tokens_.empty()) {
                 std::string s;
                 for(auto it = state_list.rbegin(); it != state_list.rend(); ++it) {
@@ -201,7 +198,7 @@ namespace complier
 
                 s.clear();
                 for(auto& token : tokens_) {
-                    s.append(token.name);
+                    s.append(token.token_type);
                     s.append(1, ' ');
                 }
                 if(!s.empty())  s.pop_back();
@@ -209,13 +206,13 @@ namespace complier
 
                 auto& token = tokens_.front();
                 std::size_t state = state_list.front();
-                if(!action_[state].count(token.name)) {
+                if(!action_[state].count(token.token_type)) {
                     for(auto& [input, output] : goto_[state]) {
                         std::cout << state << " " << input << " " << output << std::endl;
                     }
                     throw std::runtime_error("tokens_ is error in LR(1)");
                 }
-                auto& transfer = action_[state][token.name];
+                auto& transfer = action_[state][token.token_type];
                 if(transfer.type() == typeid(std::size_t)) {
 
                     state_list.emplace_front(std::any_cast<std::size_t>(transfer));
@@ -223,10 +220,6 @@ namespace complier
 
                     tokens_.pop_front();
                     std::printf("\n%s\n\n", "shift");
-
-                    if(token.name == "if") {
-                        if_begin = true;
-                    }
                 }
                 else if(transfer.type() == typeid(std::string)) {
                     std::printf("\n%s\n\n", "acc");
@@ -262,6 +255,7 @@ namespace complier
                         Token idn = token_list.front();
                         token_list.pop_front();
 
+                        idn.token_type = "var_decl";
                         idn.value = expr.value;
                         idn.type = expr.type;
 
@@ -275,23 +269,27 @@ namespace complier
                         token_list.push_front(idn);
                     }
                     else if(production == "numeric -> INT") {
+                        token_list.front().token_type = "numeric";
                         token_list.front().type = "int";
+                        token_list.front().value = token_list.front().name;
                     }
                     else if(production == "numeric -> REAL") {
+                        token_list.front().token_type = "numeric";
                         token_list.front().type = "double";
+                        token_list.front().value = token_list.front().name;
                     }
                     else if(production == "expr -> numeric") {
                         Token num = token_list.front();
                         token_list.pop_front();
 
                         Token expr;
+                        expr.token_type = "expr";
                         expr.name = new_tmp_name();
                         expr.value = num.value;
                         expr.type = num.type;
 
                         std::cout << "......................................." << std::endl;
-                        std::cout << expr.type << std::endl;
-                        /* std::printf("%s = %s\n", expr.name.data(), num.value.data()); */
+                        std::cout << expr.name << " " << expr.value << " " << expr.type << std::endl;
                         std::string s(expr.name + " = " + num.value);
                         append_to_conv_result(new_list_no(), s);
                         std::cout << "......................................." << std::endl;
@@ -308,6 +306,7 @@ namespace complier
 
                         std::cout << expr1.type << " " << expr2.type << std::endl;
                         Token expr;
+                        expr.token_type = "expr";
                         expr.name = new_tmp_name();
                         if(expr1.type == "double" || expr2.type == "double") {
                             expr.value = std::to_string(binary_operation<double>(op.name, expr1.value, expr2.value));
@@ -322,6 +321,7 @@ namespace complier
                         }
 
                         std::cout << "......................................." << std::endl;
+                        std::cout << expr.name << " " << expr.value << " " << expr.type << std::endl;
                         /* std::printf("%s = %s %s %s\n", expr.name.data(), expr1.name.data(), op.name.data(), expr2.name.data()); */
                         std::string s(expr.name + " = " + expr1.name + " " + op.name + " " + expr2.name);
                         append_to_conv_result(new_list_no(), s);
@@ -333,15 +333,18 @@ namespace complier
                         Token idn = token_list.front();
                         token_list.pop_front();
 
+                        if(idn.index >= symbol_table_.size()) {
+                            throw std::runtime_error("no variable: " + idn.name + " in symbol table");
+                        }
+                        Symbol symbol = symbol_table_[idn.index];
                         Token expr;
+                        expr.token_type = "expr";
                         expr.name = new_tmp_name();
-                        expr.value = idn.value;
-                        expr.type = idn.type;
+                        expr.type = symbol.type;
+                        expr.value = symbol.value;
 
                         std::cout << "......................................." << std::endl;
-                        std::cout << expr.type << std::endl;
-                        /* std::printf("%s = %s\n", expr.name.data(), idn.value.data()); */
-                        std::string s(expr.name + " = " + idn.value);
+                        std::string s(expr.name + " = " + symbol.name + "\t(" + expr.name + " type: " + expr.type + ")");
                         append_to_conv_result(new_list_no(), s);
                         std::cout << "......................................." << std::endl;
 
@@ -356,14 +359,24 @@ namespace complier
                         token_list.pop_front();
 
                         idn.value = expr.value;
+                        idn.type = expr.type;
 
                         std::cout << "......................................." << std::endl;
-                        Symbol symbol = symbol_table_[idn.index];
-                        /* std::printf("%s = %s\n", symbol.name.data(), expr.name.data()); */
-                        std::string s(symbol.name + " = " + expr.name);
+                        for(auto& s : symbol_table_) {
+                            std::cout << s.name << " " << s.type << " " << s.value << std::endl;
+                        }
+                        Symbol& symbol = symbol_table_[idn.index];
+                        symbol.type = idn.type;
+                        symbol.name = idn.name;
+                        symbol.value = idn.value;
+                        for(auto& s : symbol_table_) {
+                            std::cout << s.name << " " << s.type << " " << s.value << std::endl;
+                        }
+                        std::string s(symbol.name + " = " + expr.name + "\t(" + symbol.name + " type: " + idn.type + ")");
                         append_to_conv_result(new_list_no(), s);
                         std::cout << "......................................." << std::endl;
 
+                        idn.token_type = "expr";
                         token_list.push_front(idn);
                     }
                     else if(production == "M -> @") {
@@ -609,8 +622,20 @@ namespace complier
                             tokens_.emplace_back(symbol_table_.size() - 1, "def", token);
                         }
                         else {
-                            symbol_table_.emplace_back("ident", token);
-                            tokens_.emplace_back(symbol_table_.size() - 1, "ident", token);
+                            std::size_t i { 0 };
+                            for(; i != symbol_table_.size(); ++i) {
+                                /* std::cout << symbol_table_[i].name << " " << token << std::endl; */
+                                if(symbol_table_[i].name == token) {
+                                    break;
+                                }
+                            }
+                            if(i != symbol_table_.size()) {
+                                tokens_.emplace_back(i, "ident", token);
+                            }
+                            else {
+                                symbol_table_.emplace_back("ident", token);
+                                tokens_.emplace_back(symbol_table_.size() - 1, "ident", token);
+                            }
                         }
                     }
                     token.clear();
@@ -737,6 +762,9 @@ namespace complier
                     ++row;
                 }
             }
+            for(auto& symbol : symbol_table_) {
+                std::cout << symbol.name << " " << symbol.type << " " << symbol.value << std::endl;
+            }
             /* for(auto& token : tokens_) { */
             /*     std::cout << token.code << std::endl; */
             /* } */
@@ -857,12 +885,12 @@ namespace complier
                     }
                 }
             }
-            std::cout << "first set..." << std::endl;
-            for(auto& [code, code_set]: first_set_) {
-                std::cout << code << "\n";
-                std::copy(code_set.begin(), code_set.end(), std::ostream_iterator<std::string>{std::cout, " "});
-                std::cout << std::endl;
-            }
+            /* std::cout << "first set..." << std::endl; */
+            /* for(auto& [code, code_set]: first_set_) { */
+            /*     std::cout << code << "\n"; */
+            /*     std::copy(code_set.begin(), code_set.end(), std::ostream_iterator<std::string>{std::cout, " "}); */
+            /*     std::cout << std::endl; */
+            /* } */
 
         }
         /* 计算Follow集，规则如下
@@ -953,14 +981,14 @@ namespace complier
                     }
                 }
             }
-            std::cout << "follow set..." << std::endl;
-            for(auto& [code, code_list] : follow_set_) {
-                code_list.sort();
-                code_list.unique();
-                std::cout << code << "\n";
-                std::copy(code_list.begin(), code_list.end(), std::ostream_iterator<std::string>{std::cout, " "});
-                std::cout << std::endl;
-            }
+            /* std::cout << "follow set..." << std::endl; */
+            /* for(auto& [code, code_list] : follow_set_) { */
+            /*     code_list.sort(); */
+            /*     code_list.unique(); */
+            /*     std::cout << code << "\n"; */
+            /*     std::copy(code_list.begin(), code_list.end(), std::ostream_iterator<std::string>{std::cout, " "}); */
+            /*     std::cout << std::endl; */
+            /* } */
         }
         /* 构造select集，实际上是直接求预测分析表，对于形如
          * A -> BC的产生式，select(A)是B的First集
@@ -1060,7 +1088,7 @@ namespace complier
             return code_fs;
         }
         void check_first_set() {
-            std::cout << ".............................................." << std::endl;
+            /* std::cout << ".............................................." << std::endl; */
             /* for(auto& [code, code_list] : first_set_) { */
             /*     std::cout << code << std::endl; */
             /*     for(auto& c : code_list) { */
@@ -1068,27 +1096,27 @@ namespace complier
             /*     } */
             /*     std::cout << std::endl; */
             /* } */
-            std::ifstream fin{ "first_set", std::ios_base::in };
-            while(!fin.eof()) {
-                std::string head;
-                std::list<std::string> tails;
-                std::getline(fin, head);
-                auto pos = head.find_last_not_of(' ');
-                if(pos != std::string::npos) {
-                    head = head.substr(0, pos + 1);
-                }
-                std::string line;
-                std::getline(fin, line);
-                std::stringstream oss(line);
-                std::cout << head << std::endl;
-                std::cout << line << std::endl;
-                for(auto& tail : first_set_[head]) {
-                    std::cout << tail << " ";
-                }
-                std::cout << std::endl;
-            }
-            fin.close();
-            std::cout << ".............................................." << std::endl;
+            /* std::ifstream fin{ "first_set", std::ios_base::in }; */
+            /* while(!fin.eof()) { */
+            /*     std::string head; */
+            /*     std::list<std::string> tails; */
+            /*     std::getline(fin, head); */
+            /*     auto pos = head.find_last_not_of(' '); */
+            /*     if(pos != std::string::npos) { */
+            /*         head = head.substr(0, pos + 1); */
+            /*     } */
+            /*     std::string line; */
+            /*     std::getline(fin, line); */
+            /*     std::stringstream oss(line); */
+            /*     std::cout << head << std::endl; */
+            /*     std::cout << line << std::endl; */
+            /*     for(auto& tail : first_set_[head]) { */
+            /*         std::cout << tail << " "; */
+            /*     } */
+            /*     std::cout << std::endl; */
+            /* } */
+            /* fin.close(); */
+            /* std::cout << ".............................................." << std::endl; */
         }
         void anaysis_lr() {
             anaysis_items();
@@ -1160,10 +1188,6 @@ namespace complier
                 }
             }
 
-            if(closure_id == 21 && suffix == ")") {
-                int a = 0;
-                std::cout << a << std::endl;
-            }
             anaysis_closure(item_set);
             if(!item_set.empty()) {
                 if(auto it = std::find(closure_.begin(), closure_.end(), item_set);
@@ -1210,24 +1234,24 @@ namespace complier
                     anaysis_goto(i, symbol);
                 }
             }
-            std::cout << "items done..............." << std::endl;
+            /* std::cout << "items done..............." << std::endl; */
 
-            std::size_t id = 0;
-            for(auto& items : closure_) {
-                std::cout << id++ << std::endl;
-                for(auto& item : items) {
-                    std::cout << item.prefix_code << " -> ";
-                    for(std::size_t i = 0; i != item.dot; ++i) {
-                        std::cout << item.prod_vec[i] << " ";
-                    }
-                    std::cout << ".";
-                    for(std::size_t i = item.dot; i != item.prod_vec.size(); ++i) {
-                        std::cout << " " << item.prod_vec[i];
-                    }
-                    std::cout << " , " << item.suffix_code << std::endl;
-                }
-                std::cout << std::endl;
-            }
+            /* std::size_t id = 0; */
+            /* for(auto& items : closure_) { */
+            /*     std::cout << id++ << std::endl; */
+            /*     for(auto& item : items) { */
+            /*         std::cout << item.prefix_code << " -> "; */
+            /*         for(std::size_t i = 0; i != item.dot; ++i) { */
+            /*             std::cout << item.prod_vec[i] << " "; */
+            /*         } */
+            /*         std::cout << "."; */
+            /*         for(std::size_t i = item.dot; i != item.prod_vec.size(); ++i) { */
+            /*             std::cout << " " << item.prod_vec[i]; */
+            /*         } */
+            /*         std::cout << " , " << item.suffix_code << std::endl; */
+            /*     } */
+            /*     std::cout << std::endl; */
+            /* } */
         }
         void anaysis_action() {
             for(std::size_t i = 0; i != closure_.size(); ++i) {
