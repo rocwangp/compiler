@@ -1,0 +1,65 @@
+S -> func funcs | define_stmts ;     函数和函数
+funcs -> func funcs | @ ; 函数和函数和组成
+func -> type IDN ( args ) func_body  ; 函数为 类型，函数名，参数列表，函数体组成
+type -> int | short | long | char | float | double | void | unsigned type ; 类型部分
+args -> type IDN arg  | @ ;  参数列表
+arg -> , type IDN arg  | @ ;
+func_body -> \; | block  ; 函数声明或函数体
+block -> { define_stmts stmts }  ; 括号加函数体，函数体由变量定义语句和执行语句组成
+define_stmts -> define_stmt define_stmts  | @  ;  声明语句
+define_stmt -> type IDN init vars \; ;            声明语句
+init -> = expression | [ INT10 ]  | @ ;              变量初始化
+vars -> , IDN init vars | @ ;
+stmts -> stmt stmts  | @ ;
+stmt -> assign_stmt  | jump_stmt | iteration_stmt | branch_stmt ; 表达式语句，跳转语句，循环语句，分之语句
+assign_stmt -> expression \; ;                                    表达式语句
+jump_stmt -> continue \; ;
+jump_stmt -> break \; ;
+jump_stmt -> return isnull_expr \; ;
+iteration_stmt -> for ( isnull_expr \; isnull_expr \; isnull_expr ) block_stmt  ;
+iteration_stmt -> do block_stmt while ( logical_expression ) \;  ;
+branch_stmt -> if ( logical_expression ) block_stmt result  ;
+result -> else block_stmt  | @ ;
+logical_expression -> ! expression bool_expression  ;
+logical_expression -> expression bool_expression  ;
+bool_expression -> lop expression bool_expression  | @ ;
+lop -> &&  | || ;
+branch_stmt -> switch ( IDN ) { case_stmt case_stmts default_stmt } ; 
+case_stmts -> case_stmt case_stmts  | @ ;
+case_stmt -> case const : stmts  ;
+default_stmt -> default : stmts  ;
+block_stmt -> { stmts }  ;
+isnull_expr -> expression | @ ; 
+expression -> value operation  ;
+operation -> compare_op value | equal_op value | @ ;
+compare_op -> >  ;
+compare_op -> >=  ;
+compare_op -> <  ;
+compare_op -> <=  ;
+compare_op -> ==  ;
+compare_op -> !=  ;
+equal_op -> =  ;
+equal_op -> +=  ;
+equal_op -> -=  ;
+equal_op -> *=  ;
+equal_op -> /=  ;
+equal_op -> %=  ;
+value -> item value'  ;
+value' -> + item value'  ;
+value' -> - item value'  ;
+value' -> @ ;
+item -> factor item'  ;
+item' -> * factor item' ; 
+item' -> / factor item'  ;
+item' -> % factor item'  ;
+item' -> @ ;
+factor -> ( value )  ;
+factor -> IDN call_func  ;
+factor -> const  ;
+call_func -> ( es ) | @ ;
+es -> isnull_expr isnull_es ;
+isnull_es -> , isnull_expr isnull_es | @ ;
+const -> INT ; 
+const -> REAL  ;
+const -> CHAR  ;
+const -> STRING  ;
