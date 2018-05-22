@@ -1,33 +1,30 @@
-program -> stmts ;
+program -> stmts ; 
 
-var_decls -> var_decls var_decl | @ ;
+var_decls -> var_decls var_decl | @ ; 变量的声明和定义 如 a = 10
 
 var_decl -> ident | ident = expr ;
 
-expr -> ident = expr | numeric | ident | expr operation expr ;
+expr -> ident = expr | numeric | ident | expr operation expr ; 表达式，包括赋值，比较等
 
-operation -> + | - | * | / ;
-comparsion -> > | < | == | >= | <= | != ;
+operation -> + | - | * | / ; 二元运算符
+comparsion -> > | < | == | >= | <= | != ; 二元比较符
 
-numeric -> INT | REAL ;
+numeric -> INT | REAL | STRING | CHAR ; 类型，用于推导使用，如10会被规约成INT, "hello"会被规约成STRING
 
-block -> { stmts } | {  } ;
+block -> { stmts } | {  } ; 语句块，用在if, else和while后面
 
 stmts -> stmt | stmts stmt  ;
-stmt -> var_decl | expr | if_stmt | logical_stmt | while_stmt ;
+stmt -> var_decl | expr | if_stmt | logical_stmt | while_stmt ; 语句
 
 
 M -> @ ;
 N -> @ ;
 
-logical_stmt -> logical_stmt lop M logical_stmt | ! logical_stmt | expr comparsion expr | ( logical_stmt )
+logical_stmt -> logical_stmt lop M logical_stmt | ! logical_stmt | expr comparsion expr | ( logical_stmt ) ; 逻辑表达式
 lop -> && | || ;
 
+if_stmt -> if ( logical_stmt ) M block | if ( logical_stmt ) M block N else M block ; 条件表达式
 
-if_stmt -> if ( logical_stmt ) M block | if ( logical_stmt ) M block N else M block ;
+while_stmt -> while M ( logical_stmt ) M block ; 循环表达式
 
-while_stmt -> while M ( logical_stmt ) M block ;
-
-
-type -> int | double
 

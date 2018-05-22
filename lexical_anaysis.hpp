@@ -164,6 +164,8 @@ namespace complier
         Symbol() {}
         Symbol(std::string t, std::string n)
             : type(t), name(n) {}
+        Symbol(std::string t, std::string n, std::string v)
+            : type(t), name(n), value(v) {}
         std::string type;
         std::string name;
         std::string value;
@@ -233,12 +235,10 @@ namespace complier
                         state_list.pop_front();
                     }
 
-                    /* tokens_.emplace_front(0, prefix, prefix); */
                     state = state_list.front();
                     auto& t = action_[state][prefix];
 
                     state_list.emplace_front(std::any_cast<std::size_t>(t));
-                    /* attr_list.emplace_front(get_attr_from_token(prefix)); */
 
                     std::string production = prefix;
                     production.append(" ->");
@@ -278,6 +278,16 @@ namespace complier
                         token_list.front().type = "double";
                         token_list.front().value = token_list.front().name;
                     }
+                    else if(production == "numeric -> STRING") {
+                        token_list.front().token_type = "numeric";
+                        token_list.front().type = "string";
+                        token_list.front().value = token_list.front().name;
+                    }
+                    else if(production == "numeric -> CHAR") {
+                        token_list.front().token_type = "numeric";
+                        token_list.front().type = "char";
+                        token_list.front().value = token_list.front().name;
+                    }
                     else if(production == "expr -> numeric") {
                         Token num = token_list.front();
                         token_list.pop_front();
@@ -294,59 +304,8 @@ namespace complier
                         append_to_conv_result(new_list_no(), s);
                         std::cout << "......................................." << std::endl;
 
-                        token_list.push_front(expr);
-                    }
-                    else if(production == "expr -> expr operation expr") {
-                        Token expr2 = token_list.front();
-                        token_list.pop_front();
-                        Token op = token_list.front();
-                        token_list.pop_front();
-                        Token expr1 = token_list.front();
-                        token_list.pop_front();
-
-                        std::cout << expr1.type << " " << expr2.type << std::endl;
-                        Token expr;
-                        expr.token_type = "expr";
-                        expr.name = new_tmp_name();
-                        if(expr1.type == "double" || expr2.type == "double") {
-                            expr.value = std::to_string(binary_operation<double>(op.name, expr1.value, expr2.value));
-                            expr.type = "double";
-                        }
-                        else if(expr1.type == "int" && expr2.type == "int") {
-                            expr.value = std::to_string(binary_operation<int>(op.name, expr1.value, expr2.value));
-                            expr.type = "int";
-                        }
-                        else {
-                            /* throw std::runtime_error("binary operation type error: " + expr1.type + op.name + expr2.type); */
-                        }
-
-                        std::cout << "......................................." << std::endl;
-                        std::cout << expr.name << " " << expr.value << " " << expr.type << std::endl;
-                        /* std::printf("%s = %s %s %s\n", expr.name.data(), expr1.name.data(), op.name.data(), expr2.name.data()); */
-                        std::string s(expr.name + " = " + expr1.name + " " + op.name + " " + expr2.name);
-                        append_to_conv_result(new_list_no(), s);
-                        std::cout << "......................................." << std::endl;
-
-                        token_list.push_front(expr);
-                    }
-                    else if(production == "expr -> ident") {
-                        Token idn = token_list.front();
-                        token_list.pop_front();
-
-                        if(idn.index >= symbol_table_.size()) {
-                            throw std::runtime_error("no variable: " + idn.name + " in symbol table");
-                        }
-                        Symbol symbol = symbol_table_[idn.index];
-                        Token expr;
-                        expr.token_type = "expr";
-                        expr.name = new_tmp_name();
-                        expr.type = symbol.type;
-                        expr.value = symbol.value;
-
-                        std::cout << "......................................." << std::endl;
-                        std::string s(expr.name + " = " + symbol.name + "\t(" + expr.name + " type: " + expr.type + ")");
-                        append_to_conv_result(new_list_no(), s);
-                        std::cout << "......................................." << std::endl;
+                        expr.index = symbol_table_.size();
+                        symbol_table_.emplace_back(expr.type, expr.name, expr.value);
 
                         token_list.push_front(expr);
                     }
@@ -362,16 +321,10 @@ namespace complier
                         idn.type = expr.type;
 
                         std::cout << "......................................." << std::endl;
-                        for(auto& s : symbol_table_) {
-                            std::cout << s.name << " " << s.type << " " << s.value << std::endl;
-                        }
                         Symbol& symbol = symbol_table_[idn.index];
                         symbol.type = idn.type;
                         symbol.name = idn.name;
                         symbol.value = idn.value;
-                        for(auto& s : symbol_table_) {
-                            std::cout << s.name << " " << s.type << " " << s.value << std::endl;
-                        }
                         std::string s(symbol.name + " = " + expr.name + "\t(" + symbol.name + " type: " + idn.type + ")");
                         append_to_conv_result(new_list_no(), s);
                         std::cout << "......................................." << std::endl;
@@ -379,9 +332,79 @@ namespace complier
                         idn.token_type = "expr";
                         token_list.push_front(idn);
                     }
+                    else if(production == "stmt -> expr") {
+                        token_list.front().token_type = "stmt";
+                    }
+                    else if(production == "stmts -> stmt") {
+                        token_list.front().token_type = "stmts";
+                    }
+                    else if(production == "comparsion -> <") {
+                        token_list.front().token_type = "comparsion";
+                    }
+                    else if(production == "expr -> ident") {
+                        Token idn = token_list.front();
+                        token_list.pop_front();
+
+                        if(symbol_table_[idn.index].type == "ident") {
+                            throw std::runtime_error("variable be userd undefined: " + idn.name);
+                        }
+                        Symbol symbol = symbol_table_[idn.index];
+                        Token expr;
+                        expr.token_type = "expr";
+                        expr.name = new_tmp_name();
+                        expr.type = symbol.type;
+                        expr.value = symbol.value;
+
+                        std::cout << "......................................." << std::endl;
+                        std::string s(expr.name + " = " + symbol.name + "\t(" + expr.name + " type: " + expr.type + ")");
+                        append_to_conv_result(new_list_no(), s);
+                        std::cout << "......................................." << std::endl;
+
+                        expr.index = symbol_table_.size();
+                        symbol_table_.emplace_back(expr.type, expr.name, expr.value);
+
+                        token_list.push_front(expr);
+                    }
+                    else if(production == "expr -> expr operation expr") {
+                        Token expr2 = token_list.front();
+                        token_list.pop_front();
+                        Token op = token_list.front();
+                        token_list.pop_front();
+                        Token expr1 = token_list.front();
+                        token_list.pop_front();
+
+                        std::cout << expr1.type << " " << expr2.type << std::endl;
+                        Token expr;
+                        expr.token_type = "expr";
+                        expr.name = new_tmp_name();
+                        if(is_valid_operation(expr1.type, expr2.type)) {
+                            if(expr1.type == "double" || expr2.type == "double") {
+                                expr.value = std::to_string(binary_operation<double>(op.name, expr1.value, expr2.value));
+                                expr.type = "double";
+                            }
+                            else {
+                                expr.value = std::to_string(binary_operation<int>(op.name, expr1.value, expr2.value));
+                                expr.type = "int";
+                            }
+                        }
+                        else {
+                            throw std::runtime_error("binary operation type error: " + expr1.type + op.name + expr2.type);
+                        }
+
+                        std::cout << "......................................." << std::endl;
+                        std::cout << expr.name << " " << expr.value << " " << expr.type << std::endl;
+                        std::string s(expr.name + " = " + expr1.name + " " + op.name + " " + expr2.name);
+                        append_to_conv_result(new_list_no(), s);
+                        std::cout << "......................................." << std::endl;
+
+                        expr.index = symbol_table_.size();
+                        symbol_table_.emplace_back(expr.type, expr.name, expr.value);
+
+                        token_list.push_front(expr);
+                    }
                     else if(production == "M -> @") {
                         Token m;
-                        m.name = "M";
+                        m.token_type = "M";
                         m.instr = new_list_no(false);
                         std::cout << m.instr << std::endl;
 
@@ -389,7 +412,7 @@ namespace complier
                     }
                     else if(production == "N -> @") {
                         Token n;
-                        n.name = "N";
+                        n.token_type = "N";
                         std::size_t num = new_list_no();
                         n.next_list[num] = std::to_string(num) + ":goto ";
                         append_to_conv_result(num, n.next_list[num]);
@@ -456,12 +479,12 @@ namespace complier
                     }
                     else if(production == "block -> { stmts }") {
                         Token s = front_and_pop_n(3, token_list)[1];
-                        s.name = "block";
+                        s.token_type = "block";
                         token_list.push_front(s);
                     }
                     else if(production == "stmts -> stmts stmt") {
                         Token s = front_and_pop_n(2, token_list)[0];
-                        s.name = "stmts";
+                        s.token_type = "stmts";
                         token_list.push_front(s);
                     }
                     else if(production == "while_stmt -> while M ( logical_stmt ) M block") {
@@ -490,6 +513,21 @@ namespace complier
 
             for(auto& p : conv_results_) {
                 std::cout << p.first << ": " << p.second << std::endl;
+            }
+            std::cout << "\n";
+            for(auto& s : symbol_table_) {
+                std::cout << s.name << " " << s.type << " " << s.value << std::endl;
+            }
+        }
+        bool is_numeric_type(std::string& type) {
+            return type == "int" || type == "double";
+        }
+        bool is_valid_operation(std::string& type1, std::string& type2) {
+            if(is_numeric_type(type1) && is_numeric_type(type2)) {
+                return true;
+            }
+            else {
+                return false;
             }
         }
         void anaysis_predict(const std::vector<std::string>& operation) {
@@ -617,25 +655,18 @@ namespace complier
                         tokens_.emplace_back(0, token, token);
                     }
                     else {
-                        if(!tokens_.empty() && tokens_.back().name == "def") {
-                            symbol_table_.emplace_back("def", token);
-                            tokens_.emplace_back(symbol_table_.size() - 1, "def", token);
+                        std::size_t i { 0 };
+                        for(; i != symbol_table_.size(); ++i) {
+                            if(symbol_table_[i].name == token) {
+                                break;
+                            }
+                        }
+                        if(i != symbol_table_.size()) {
+                            tokens_.emplace_back(i, "ident", token);
                         }
                         else {
-                            std::size_t i { 0 };
-                            for(; i != symbol_table_.size(); ++i) {
-                                /* std::cout << symbol_table_[i].name << " " << token << std::endl; */
-                                if(symbol_table_[i].name == token) {
-                                    break;
-                                }
-                            }
-                            if(i != symbol_table_.size()) {
-                                tokens_.emplace_back(i, "ident", token);
-                            }
-                            else {
-                                symbol_table_.emplace_back("ident", token);
-                                tokens_.emplace_back(symbol_table_.size() - 1, "ident", token);
-                            }
+                            symbol_table_.emplace_back("ident", token);
+                            tokens_.emplace_back(symbol_table_.size() - 1, "ident", token);
                         }
                     }
                     token.clear();
@@ -885,12 +916,12 @@ namespace complier
                     }
                 }
             }
-            /* std::cout << "first set..." << std::endl; */
-            /* for(auto& [code, code_set]: first_set_) { */
-            /*     std::cout << code << "\n"; */
-            /*     std::copy(code_set.begin(), code_set.end(), std::ostream_iterator<std::string>{std::cout, " "}); */
-            /*     std::cout << std::endl; */
-            /* } */
+            std::cout << "first set..." << std::endl;
+            for(auto& [code, code_set]: first_set_) {
+                std::cout << code << "\n";
+                std::copy(code_set.begin(), code_set.end(), std::ostream_iterator<std::string>{std::cout, " "});
+                std::cout << std::endl << std::endl;
+            }
 
         }
         /* 计算Follow集，规则如下
@@ -1234,24 +1265,24 @@ namespace complier
                     anaysis_goto(i, symbol);
                 }
             }
-            /* std::cout << "items done..............." << std::endl; */
+            std::cout << "items done..............." << std::endl;
 
-            /* std::size_t id = 0; */
-            /* for(auto& items : closure_) { */
-            /*     std::cout << id++ << std::endl; */
-            /*     for(auto& item : items) { */
-            /*         std::cout << item.prefix_code << " -> "; */
-            /*         for(std::size_t i = 0; i != item.dot; ++i) { */
-            /*             std::cout << item.prod_vec[i] << " "; */
-            /*         } */
-            /*         std::cout << "."; */
-            /*         for(std::size_t i = item.dot; i != item.prod_vec.size(); ++i) { */
-            /*             std::cout << " " << item.prod_vec[i]; */
-            /*         } */
-            /*         std::cout << " , " << item.suffix_code << std::endl; */
-            /*     } */
-            /*     std::cout << std::endl; */
-            /* } */
+            std::size_t id = 0;
+            for(auto& items : closure_) {
+                std::cout << id++ << std::endl;
+                for(auto& item : items) {
+                    std::cout << item.prefix_code << " -> ";
+                    for(std::size_t i = 0; i != item.dot; ++i) {
+                        std::cout << item.prod_vec[i] << " ";
+                    }
+                    std::cout << ".";
+                    for(std::size_t i = item.dot; i != item.prod_vec.size(); ++i) {
+                        std::cout << " " << item.prod_vec[i];
+                    }
+                    std::cout << " , " << item.suffix_code << std::endl;
+                }
+                std::cout << std::endl;
+            }
         }
         void anaysis_action() {
             for(std::size_t i = 0; i != closure_.size(); ++i) {
